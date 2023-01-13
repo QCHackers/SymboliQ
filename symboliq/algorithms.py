@@ -92,6 +92,11 @@ assert my_simplify2(b_3 * ket_0) == 0
 assert my_simplify2(b_3 * ket_1) == Ket(1)
 # B_3 * |1> = 0
 assert my_simplify2(b_3 * ket_1) == Ket(1)
+# X * |0> = |1>
 assert my_simplify2(X * ket_0) == Ket(1)
+# X * |1> = |0>
 assert my_simplify2(X * ket_1) == Ket(0)
+# H * |0> = 1/sqrt(2)|0> + 1/sqrt(2)|1>
 assert my_simplify2(H * ket_0) == 1/sqrt(2) * Ket(0) + 1/sqrt(2) * Ket(1)
+# H * |1> = 1/sqrt(2)|0> - 1/sqrt(2)|1>
+assert my_simplify2(H * ket_1) == 1/sqrt(2) * Ket(0) - 1/sqrt(2) * Ket(1)
