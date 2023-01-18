@@ -44,11 +44,24 @@ def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
+
+def check_integer_pows(pows):
+    if any(not e.is_Integer for b, e in (i.as_base_exp() for i in pows)):
+        return False
+    return True
 def my_simplify2(c, multiple_op: bool = False, state_space=1):
-    #print(f"Multiple c {c}")
     if multiple_op:
         return multiple_operations(c)
     for arg in preorder_traversal(c):
+        if arg.has(Pow) and check_integer_pows(list(arg.atoms(Pow))):
+            pows = list(arg.atoms(Pow))
+            base = pows[0].base
+            exponent = pows[0].exp
+            state = arg.args[len(arg.args) - 1]
+
+            for i in range(exponent):
+                state = my_simplify2(base * state)
+            return state
         if arg.has(Mul) and not arg.has(Add) and not arg.has(TensorProduct):
             # Associative property
             args = arg.args
@@ -59,6 +72,7 @@ def my_simplify2(c, multiple_op: bool = False, state_space=1):
                     brakets.append(term)
                 else:
                     constants.append(term)
+
             new_brakets = brakets[0].args[0] * (brakets[0].args[1] * brakets[1])
 
             res = Mul(new_brakets * sympy.prod(constants))
@@ -88,7 +102,7 @@ def my_simplify2(c, multiple_op: bool = False, state_space=1):
             for i in last_list1:
                 final_state_vec = final_state_vec + TensorProduct(*i)
             return final_state_vec
-#
+
 # B_0 * |0> = |0>
 assert my_simplify2(ket_0 * bra_0 * ket_0) == Ket(0)
 # B_0 * |1> = 0
@@ -113,7 +127,6 @@ assert my_simplify2(X * ket_0) == Ket(1)
 assert my_simplify2(X * ket_1) == Ket(0)
 # X * |0> = |1>
 assert my_simplify2(X * ket_0) == Ket(1)
-# TODO : my_simplify2((X * X) * ket_0, True))
 # X * |1> = |0>
 assert my_simplify2(X * ket_1) == Ket(0)
 # X * I * |1> = |1>
@@ -132,19 +145,6 @@ assert my_simplify2(CX * TensorProduct(ket_0, ket_1), state_space=2) == TensorPr
 assert my_simplify2(CX * TensorProduct(ket_1, ket_0), state_space=2) == TensorProduct(ket_1, ket_1)
 # CX * |11> = |10>
 assert my_simplify2(CX * TensorProduct(ket_1, ket_1), state_space=2) == TensorProduct(ket_1, ket_0)
-
-
-# print(my_simplify2((TensorProduct(X, I_2)) * (TensorProduct(ket_0, ket_0))))
-# express =  Mul(
-#     I,
-#     TensorProduct
-#     (Add(OuterProduct(
-#         Ket(Integer(0)),
-#         Bra(Integer(1))),
-#         OuterProduct(Ket(Integer(1)),
-#         Bra(Integer(0)))), Integer(1)), TensorProduct(Ket(Integer(0)), Ket(Integer(0))))
-# print(express)
-# my_simplify2(express)
-
-#print(my_simplify2(X * X * ket_0, multiple_op=True))
+assert my_simplify2(X * X * ket_0, multiple_op=True) == Ket(0)
+# my_simplify2(TensorProduct(H, ket_1) * TensorProduct(ket_1, ket_1), multiple_op=True, state_space=2)
 
