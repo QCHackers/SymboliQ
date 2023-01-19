@@ -84,6 +84,7 @@ def factor_tensor(expr, state_space):
 
 
 def my_simplify2(c, multiple_op: bool = False, state_space=1):
+    # print(c.func)
     if multiple_op:
         return multiple_operations(c, state_space)
     for arg in preorder_traversal(c):
@@ -139,18 +140,6 @@ def my_simplify2(c, multiple_op: bool = False, state_space=1):
                     tansors.append(my_simplify2(j))
                 final_state_vec = final_state_vec + TensorProduct(*tansors)
             return final_state_vec
-            #     print(type(ar))
-            #     for sub in ar.args:
-            #         if isinstance(sub, (Rational, Pow)):
-            #             pass
-            #         else:
-            #             #print(f"Sub {sub}")
-            #             #  print(f"My simpify sub {my_simplify2(sub)}")
-            #             last_list1.append(my_simplify2(sub))
-            # last_list1 = chunks(last_list1, state_space)
-            # for i in last_list1:
-            #     #print(f"The result {i}")
-            #     final_state_vec = final_state_vec + TensorProduct(*i)
         else:
             print(f"Arg {arg}")
             return arg
@@ -202,13 +191,26 @@ assert my_simplify2(X * X * ket_0, multiple_op=True) == Ket(0)
 assert my_simplify2(CX * TensorProduct(X, I_2) * TensorProduct(ket_0, ket_0), state_space=2, multiple_op=True) == TensorProduct(Ket(1), Ket(1))
 assert my_simplify2(TensorProduct(H, I_2) * TensorProduct(ket_0, ket_0), state_space=2) == sqrt(2)/2 * TensorProduct(
     Ket(0), Ket(0)) + sqrt(2)/2 * TensorProduct(Ket(1), Ket(0))
+assert my_simplify2(CX * TensorProduct(H, I_2) * TensorProduct(ket_0, ket_0),
+                    state_space=2, multiple_op=True) ==  sqrt(2)/2 * TensorProduct(
+    Ket(0), Ket(0)) + sqrt(2)/2 * TensorProduct(Ket(1), Ket(1))
 
+# psi = my_simplify2(H * ket_0, state_space=1, multiple_op=False)
+#
+# print(psi)
+#
+# p_0 = b_0 * psi
+#
+# print(p_0)
+#
+# print(my_simplify2(p_0))
 
-
-# print(TensorProduct(H, I_2) * TensorProduct(ket_0, ket_0))
-res = my_simplify2(TensorProduct(H, I_2) * TensorProduct(ket_0, ket_0), state_space=2)
-# print(res)
-
-# print(my_simplify2(CX * TensorProduct(ket_0, ket_0), state_space=2) == TensorProduct(ket_0, ket_0))
-# print(ras)
-
+# bell_state = my_simplify2(CX * TensorProduct(H, I_2) * TensorProduct(ket_0, ket_0),
+#                     state_space=2, multiple_op=True)
+#
+# alice_state = Ket(1)
+#
+#
+# psi = TensorProduct(alice_state, bell_state)
+#
+# print(TensorProduct(H, I_2, I_2) * TensorProduct(CX, I_2) * psi)
