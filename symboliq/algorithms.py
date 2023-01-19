@@ -33,25 +33,59 @@ assert my_simpify(bra_1 * ket_0) == 0
 x_0 = b_0 * ket_0
 
 
-
-def multiple_operations(arg):
-    state = arg.args[len(arg.args)-1]
-    for i in range(len(arg.args) - 1):
-        state = my_simplify2(arg.args[i] * state)
+def multiple_operations(arg, state_space):
+    state = arg.args[len(arg.args) - 1]
+    for i in reversed(range(len(arg.args) - 1)):
+        state = my_simplify2(arg.args[i] * state, state_space=state_space)
     return state
+
 
 def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
 
+
 def check_integer_pows(pows):
     if any(not e.is_Integer for b, e in (i.as_base_exp() for i in pows)):
         return False
     return True
+
+
+def factor_tensor(expr, state_space):
+    """Given sqrt(2)*(|0><0|*|0>)x((|0><0| + |1><1|)*|0>)/2,
+    returns
+
+    [sqrt(2)*(|0><0|*|0>), ((|0><0| + |1><1|)*|0>)/2]
+
+     """
+    tensors = []
+    constant = []
+    additions = []
+
+    if expr.func == Add:
+        for ar in expr.args:
+            additions.append(factor_tensor(ar, state_space))
+        return additions
+
+    if expr.func == Mul:
+        for ar in expr.args:
+            if ar.func == TensorProduct:
+                tensors = list(ar.args)
+            else:
+                constant.append(ar)
+        for i in constant:
+            tensors[0] = tensors[0] * i
+    if expr.func == TensorProduct:
+        for ar in expr.args:
+            tensors.append(ar)
+
+    return tensors
+
+
 def my_simplify2(c, multiple_op: bool = False, state_space=1):
     if multiple_op:
-        return multiple_operations(c)
+        return multiple_operations(c, state_space)
     for arg in preorder_traversal(c):
         if arg.has(Pow) and check_integer_pows(list(arg.atoms(Pow))):
             pows = list(arg.atoms(Pow))
@@ -64,6 +98,7 @@ def my_simplify2(c, multiple_op: bool = False, state_space=1):
             return state
         if arg.has(Mul) and not arg.has(Add) and not arg.has(TensorProduct):
             # Associative property
+            # print(arg)
             args = arg.args
             constants = []
             brakets = []
@@ -95,15 +130,33 @@ def my_simplify2(c, multiple_op: bool = False, state_space=1):
             last_list1 = []
             final_state_vec = 0
             res = tensor_product_simp(arg.expand(tensorproduct=True))
-            for ar in res.args:
-                for sub in ar.args:
-                    last_list1.append(my_simplify2(sub))
-            last_list1 = chunks(last_list1, state_space)
-            for i in last_list1:
-                final_state_vec = final_state_vec + TensorProduct(*i)
-            return final_state_vec
+            res = factor_tensor(res, 2)
 
-# B_0 * |0> = |0>
+
+            for i in res:
+                tansors = []
+                for j in i:
+                    tansors.append(my_simplify2(j))
+                final_state_vec = final_state_vec + TensorProduct(*tansors)
+            return final_state_vec
+            #     print(type(ar))
+            #     for sub in ar.args:
+            #         if isinstance(sub, (Rational, Pow)):
+            #             pass
+            #         else:
+            #             #print(f"Sub {sub}")
+            #             #  print(f"My simpify sub {my_simplify2(sub)}")
+            #             last_list1.append(my_simplify2(sub))
+            # last_list1 = chunks(last_list1, state_space)
+            # for i in last_list1:
+            #     #print(f"The result {i}")
+            #     final_state_vec = final_state_vec + TensorProduct(*i)
+        else:
+            print(f"Arg {arg}")
+            return arg
+
+
+#B_0 * |0> = |0>
 assert my_simplify2(ket_0 * bra_0 * ket_0) == Ket(0)
 # B_0 * |1> = 0
 assert my_simplify2(ket_0 * bra_0 * ket_1) == 0
@@ -146,5 +199,16 @@ assert my_simplify2(CX * TensorProduct(ket_1, ket_0), state_space=2) == TensorPr
 # CX * |11> = |10>
 assert my_simplify2(CX * TensorProduct(ket_1, ket_1), state_space=2) == TensorProduct(ket_1, ket_0)
 assert my_simplify2(X * X * ket_0, multiple_op=True) == Ket(0)
-# my_simplify2(TensorProduct(H, ket_1) * TensorProduct(ket_1, ket_1), multiple_op=True, state_space=2)
+assert my_simplify2(CX * TensorProduct(X, I_2) * TensorProduct(ket_0, ket_0), state_space=2, multiple_op=True) == TensorProduct(Ket(1), Ket(1))
+assert my_simplify2(TensorProduct(H, I_2) * TensorProduct(ket_0, ket_0), state_space=2) == sqrt(2)/2 * TensorProduct(
+    Ket(0), Ket(0)) + sqrt(2)/2 * TensorProduct(Ket(1), Ket(0))
+
+
+
+# print(TensorProduct(H, I_2) * TensorProduct(ket_0, ket_0))
+res = my_simplify2(TensorProduct(H, I_2) * TensorProduct(ket_0, ket_0), state_space=2)
+# print(res)
+
+# print(my_simplify2(CX * TensorProduct(ket_0, ket_0), state_space=2) == TensorProduct(ket_0, ket_0))
+# print(ras)
 
