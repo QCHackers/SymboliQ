@@ -62,3 +62,10 @@ ghz_circuit = ghz.circuit()
 counts = execute_circuit_on_quantum_hardware(ghz_circuit) # For example, via AWS Braket, IBM Qiskit, or SuperstaQ
 score = ghz.score(counts)
 ```
+
+
+TODO:
+Multi-qubit gates
+GUI
+Basic algorithms
+Maunal applications of rules

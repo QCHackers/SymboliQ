@@ -13,6 +13,7 @@ def my_simpify(expr):
 
 
 ket_0 = Ket(0)
+Ket0 = ket_0
 bra_0 = Dagger(ket_0)
 ket_1 = Ket(1)
 bra_1 = Dagger(ket_1)
@@ -224,7 +225,7 @@ res = my_simplify2(p_0, old_add_not_tensor=False)
 # print(res)
 # # print(1/sqrt(2) * Bra(0) + 1/sqrt(2) * Bra(1) )
 res = ((1/sqrt(2) * Bra(0) + 1/sqrt(2) * Bra(1)) * res).expand()
-print(f"Res {my_simplify2(res, old_add_not_tensor=False)}")
+#print(f"Res {my_simplify2(res, old_add_not_tensor=False)}")
 
 # res = Mul(Rational(1, 2), Bra(Integer(0)), Ket(Integer(0)))
 #
@@ -251,3 +252,65 @@ print(f"Res {my_simplify2(res, old_add_not_tensor=False)}")
 # psi = TensorProduct(alice_state, bell_state)
 #
 # print(TensorProduct(H, I_2, I_2) * TensorProduct(CX, I_2) * psi)
+
+B0 = Symbol('B_{0}')
+B1 = Symbol('B_{1}')
+B2 = Symbol('B_{1}')
+
+bases_matrices = [B0]
+base_states = [ket_0]
+class DiracNotation:
+    steps = []
+
+    def __init__(self):
+        pass
+
+    def get_steps_latex(self, expr):
+        self.steps = []
+        self.steps.append(expr)
+        self.my_simplify_3(expr)
+        expr_list = []
+        for i in self.steps:
+            expr_list.append(latex(i))
+        latex_str = ""
+        for i, j in enumerate(expr_list):
+            # print(fr"({i}) \quad {j} \\")
+            latex_str = latex_str + fr"({i}) \quad {j} \\"
+        return latex_str
+
+    def my_simplify_3(self, arg):
+        # print(arg.func)
+
+        if arg.func == InnerProduct:
+            if arg == Bra(0) * Ket(0) or arg == Bra(1) * Ket(1):
+                return 1
+            elif arg == Bra(1) * Ket(0) or arg == Bra(0) * Ket(1):
+                return 0
+            else:
+                raise ValueError("Unhandled")
+        if any(item in bases_matrices for item in list(arg.args)):
+            arg = arg.subs([(B0, b_0), (B1, b_1), (B2, b_2)])
+            return self.my_simplify_3(arg)
+
+        if arg.func == Mul and len(arg.args) == 2 and any(
+                item in base_states for item in list(arg.args)):
+            brakets = []
+            new_term = 1
+            args = arg.args
+            for term in args:
+                if isinstance(term, (OuterProduct, Ket, Bra)):
+                    brakets.append(term)
+                elif isinstance(term, InnerProduct):
+                    self.steps.append(arg)
+                    new_term = new_term * self.my_simplify_3(term) * args[1]
+                    self.steps.append(new_term)
+                    return new_term
+            if arg.has(OuterProduct):
+                res = self.my_simplify_3(brakets[0].args[0] * (brakets[0].args[1] * brakets[1]))
+            else:
+                return new_term
+
+
+# dirac_notation = DiracNotation()
+#
+# res = dirac_notation.get_steps_latex(B0 * ket_0)
