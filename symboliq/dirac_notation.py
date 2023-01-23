@@ -84,10 +84,13 @@ def factor_tensor(expr: Any, state_space: int) -> Any:
 class DiracNotation:
     steps: List[sympy.Expr] = []
 
-    def get_steps_latex(self, expr: sympy.Mul) -> str:
+    def __init__(self, expr: sympy.Mul):
+        self.expr = expr
+
+    def get_steps_latex(self) -> str:
         self.steps = []
-        self.steps.append(expr)
-        self.my_simplify_3(expr)
+        self.steps.append(self.expr)
+        self._gate_reduce(self.expr)
         expr_list = []
         for i in self.steps:
             expr_list.append(sympy.latex(i))
@@ -112,12 +115,12 @@ class DiracNotation:
                 brakets.append(term)
             elif isinstance(term, InnerProduct):
                 self.steps.append(arg)
-                new_term = new_term * self.my_simplify_3(term) * args[1]
+                new_term = new_term * self._gate_reduce(term) * args[1]
                 self.steps.append(new_term)
                 return new_term
             elif isinstance(term, (Half, sympy.Pow, sympy.Rational)):
                 constants.append(term)
-        calc = self.my_simplify_3(brakets[0].args[0] * (brakets[0].args[1] * brakets[1]))
+        calc = self._gate_reduce(brakets[0].args[0] * (brakets[0].args[1] * brakets[1]))
         for i in constants:
             calc = calc * i
         assert isinstance(calc, sympy.Expr)
@@ -127,7 +130,7 @@ class DiracNotation:
         added_term: sympy.Expr = sympy.Integer(0)
         for i in arg.args:
             assert isinstance(i, sympy.Expr)
-            added_term = added_term + self.my_simplify_3(i)
+            added_term = added_term + self._gate_reduce(i)
         return added_term
 
     def _tensor_reduce(self, arg: sympy.Expr) -> sympy.Expr:
@@ -137,12 +140,12 @@ class DiracNotation:
         for i in mes:
             tansors = []
             for j in i:
-                tansors.append(self.my_simplify_3(j))
+                tansors.append(self._gate_reduce(j))
             final_state_vec = final_state_vec + TensorProduct(*tansors)
         assert isinstance(final_state_vec, sympy.Expr)
         return final_state_vec
 
-    def my_simplify_3(self, arg: sympy.Expr) -> sympy.Expr:
+    def _gate_reduce(self, arg: sympy.Expr) -> sympy.Expr:
         if isinstance(arg, InnerProduct):
             return self._base_reduce(arg)
         # b_0 = ket_0 * bra_0
@@ -151,12 +154,12 @@ class DiracNotation:
         # b_3 = ket_1 * bra_1
         elif any(item in bases_matrices for item in list(arg.args)):
             arg = arg.subs([(B0, b_0), (B1, b_1), (B2, b_2)])
-            return self.my_simplify_3(arg)
+            return self._gate_reduce(arg)
 
         elif any(item in pauli_and_hadamard_gates for item in list(arg.args)):
             arg = arg.subs([(XSymbol, X)])
             # Distributivity of matrix multiplication over addition
-            return self.my_simplify_3(arg.expand())
+            return self._gate_reduce(arg.expand())
 
         elif (
             isinstance(arg, sympy.Mul)
@@ -168,8 +171,8 @@ class DiracNotation:
             return self._add_reduce(arg)
         return self._tensor_reduce(arg)
 
-    def multiple_operations(self, arg: sympy.Mul) -> sympy.Expr:
-        rev_args = arg.args[::-1]
+    def operate_reduce(self) -> sympy.Expr:
+        rev_args = self.expr.args[::-1]
         state = rev_args[0]
         for i in range(1, len(rev_args)):
             rev_args_by_index = rev_args[i]
@@ -177,7 +180,7 @@ class DiracNotation:
                 exp = rev_args_by_index.exp
                 base = rev_args_by_index.base
                 for _ in range(exp):
-                    state = self.my_simplify_3(base * state)
+                    state = self._gate_reduce(base * state)
             else:
-                state = self.my_simplify_3(rev_args_by_index * state)
+                state = self._gate_reduce(rev_args_by_index * state)
         return state
