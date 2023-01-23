@@ -1,18 +1,16 @@
-from typing import List
-import typing
+from typing import Any, List
 
+import sympy
 from sympy.core.numbers import Half
 from sympy.physics.quantum import (
     Bra,
     Dagger,
-    Ket,
-    TensorProduct,
     InnerProduct,
+    Ket,
     OuterProduct,
+    TensorProduct,
     tensor_product_simp,
 )
-import sympy
-
 
 ket_0 = Ket(0)
 
@@ -53,9 +51,7 @@ def count_number_of_kets_and_bras(arg: sympy.Mul) -> int:
     return count
 
 
-def factor_tensor(
-    expr: typing.Union[sympy.physics.quantum.TensorProduct, sympy.Add, sympy.Mul], state_space: int
-) -> List[sympy.Basic]:
+def factor_tensor(expr: Any, state_space: int) -> Any:
     """Given sqrt(2)*(|0><0|*|0>)x((|0><0| + |1><1|)*|0>)/2,
     returns
 
@@ -86,7 +82,7 @@ def factor_tensor(
 
 
 class DiracNotation:
-    steps: List[sympy.Mul] = []
+    steps: List[sympy.Expr] = []
 
     def get_steps_latex(self, expr: sympy.Mul) -> str:
         self.steps = []
@@ -95,74 +91,84 @@ class DiracNotation:
         expr_list = []
         for i in self.steps:
             expr_list.append(sympy.latex(i))
-        latex_str = ""
-        for i, j in enumerate(expr_list):
-            latex_str = latex_str + rf"({i}) \quad {j} \\"
+        latex_str: str = ""
+        for k, l in enumerate(expr_list):
+            latex_str = latex_str + rf"({k}) \quad {l} \\"
         return latex_str
 
-    def _base_reduce(self, arg: sympy.physics.quantum.InnerProduct) -> int:
+    def _base_reduce(self, arg: sympy.physics.quantum.InnerProduct) -> sympy.Integer:
         if arg == Bra(0) * Ket(0) or arg == Bra(1) * Ket(1):
-            return 1
+            return sympy.Integer(1)
         else:
-            return 0
+            return sympy.Integer(0)
 
-    def my_simplify_3(self, arg):
-        if arg.func == InnerProduct:
+    def _mul_reduce(self, arg: sympy.Expr) -> sympy.Expr:
+        brakets = []
+        constants = []
+        new_term = sympy.Integer(1)
+        args = arg.args
+        for term in args:
+            if isinstance(term, (OuterProduct, Ket, Bra)):
+                brakets.append(term)
+            elif isinstance(term, InnerProduct):
+                self.steps.append(arg)
+                new_term = new_term * self.my_simplify_3(term) * args[1]
+                self.steps.append(new_term)
+                return new_term
+            elif isinstance(term, (Half, sympy.Pow, sympy.Rational)):
+                constants.append(term)
+        calc = self.my_simplify_3(brakets[0].args[0] * (brakets[0].args[1] * brakets[1]))
+        for i in constants:
+            calc = calc * i
+        assert isinstance(calc, sympy.Expr)
+        return calc
+
+    def _add_reduce(self, arg: sympy.Expr) -> sympy.Expr:
+        added_term: sympy.Expr = sympy.Integer(0)
+        for i in arg.args:
+            assert isinstance(i, sympy.Expr)
+            added_term = added_term + self.my_simplify_3(i)
+        return added_term
+
+    def _tensor_reduce(self, arg: sympy.Expr) -> sympy.Expr:
+        final_state_vec = sympy.Integer(0)
+        mes = tensor_product_simp(arg.expand(tensorproduct=True))
+        mes = factor_tensor(mes, 2)
+        for i in mes:
+            tansors = []
+            for j in i:
+                tansors.append(self.my_simplify_3(j))
+            final_state_vec = final_state_vec + TensorProduct(*tansors)
+        assert isinstance(final_state_vec, sympy.Expr)
+        return final_state_vec
+
+    def my_simplify_3(self, arg: sympy.Expr) -> sympy.Expr:
+        if isinstance(arg, InnerProduct):
             return self._base_reduce(arg)
         # b_0 = ket_0 * bra_0
         # b_1 = ket_0 * bra_1
         # b_2 = ket_1 * bra_0
         # b_3 = ket_1 * bra_1
-        if any(item in bases_matrices for item in list(arg.args)):
+        elif any(item in bases_matrices for item in list(arg.args)):
             arg = arg.subs([(B0, b_0), (B1, b_1), (B2, b_2)])
             return self.my_simplify_3(arg)
 
-        if any(item in pauli_and_hadamard_gates for item in list(arg.args)):
+        elif any(item in pauli_and_hadamard_gates for item in list(arg.args)):
             arg = arg.subs([(XSymbol, X)])
             # Distributivity of matrix multiplication over addition
             return self.my_simplify_3(arg.expand())
 
         elif (
-            arg.func == sympy.Mul
+            isinstance(arg, sympy.Mul)
             and count_number_of_kets_and_bras(arg) == 2
             and any(item in base_states for item in list(arg.args))
         ):
-            brakets = []
-            constants = []
-            new_term = 1
-            args = arg.args
-            for term in args:
-                if isinstance(term, (OuterProduct, Ket, Bra)):
-                    brakets.append(term)
-                elif isinstance(term, InnerProduct):
-                    self.steps.append(arg)
-                    new_term = new_term * self.my_simplify_3(term) * args[1]
-                    self.steps.append(new_term)
-                    return new_term
-                elif isinstance(term, (Half, sympy.Pow, sympy.Rational)):
-                    constants.append(term)
-            if arg.has(OuterProduct):
-                calc = self.my_simplify_3(brakets[0].args[0] * (brakets[0].args[1] * brakets[1]))
-                for i in constants:
-                    calc = calc * i
-                return calc
+            return self._mul_reduce(arg)
         elif arg.func == sympy.Add:
-            added_term = 0
-            for i in arg.args:
-                added_term = added_term + self.my_simplify_3(i)
-            return added_term
-        elif arg.func == sympy.Mul and arg.has(TensorProduct):
-            final_state_vec = 0
-            mes = tensor_product_simp(arg.expand(tensorproduct=True))
-            mes = factor_tensor(mes, 2)
-            for i in mes:
-                tansors = []
-                for j in i:
-                    tansors.append(self.my_simplify_3(j))
-                final_state_vec = final_state_vec + TensorProduct(*tansors)
-            return final_state_vec
+            return self._add_reduce(arg)
+        return self._tensor_reduce(arg)
 
-    def multiple_operations(self, arg: sympy.Mul):
+    def multiple_operations(self, arg: sympy.Mul) -> sympy.Expr:
         rev_args = arg.args[::-1]
         state = rev_args[0]
         for i in range(1, len(rev_args)):
@@ -174,5 +180,4 @@ class DiracNotation:
                     state = self.my_simplify_3(base * state)
             else:
                 state = self.my_simplify_3(rev_args_by_index * state)
-        # print(type(state))
         return state

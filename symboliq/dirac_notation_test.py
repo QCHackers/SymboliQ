@@ -2,20 +2,20 @@ from sympy import sqrt
 from sympy.physics.quantum import Ket, TensorProduct
 
 from symboliq.dirac_notation import (
-    ket_0,
-    ket_1,
-    X,
-    I_2,
-    H,
-    bra_0,
-    CX,
-    DiracNotation,
     B0,
-    Ket0,
     B1,
+    CX,
+    I_2,
+    DiracNotation,
+    H,
+    Ket0,
+    X,
     b_1,
     b_2,
     b_3,
+    bra_0,
+    ket_0,
+    ket_1,
 )
 
 
@@ -23,6 +23,8 @@ def test_base_reduce() -> None:
     dirac_notation = DiracNotation()
     # B_0 * |0> = |0>
     assert dirac_notation.multiple_operations(B0 * Ket0) == Ket0
+
+    # print(dirac_notation.my_simplify_3(TensorProduct(B0, B1)))
     # B_0 * |1> = 0
     assert dirac_notation.multiple_operations(ket_0 * bra_0 * ket_1) == 0
     # B_1 * |0> = 0
