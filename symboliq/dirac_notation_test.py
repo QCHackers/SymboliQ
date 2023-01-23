@@ -98,3 +98,13 @@ def test_circuit_reduce():
     assert dirac_notation.multiple_operations(
         CX * TensorProduct(H, I_2) * TensorProduct(ket_0, ket_0)
     ) == sqrt(2) / 2 * TensorProduct(Ket(0), Ket(0)) + sqrt(2) / 2 * TensorProduct(Ket(1), Ket(1))
+
+
+def test_get_steps_latex():
+    dirac_notation = DiracNotation()
+    # B_0 * |0> = |0>
+    assert (
+        dirac_notation.get_steps_latex(B0 * Ket0)
+        == r"(0) \quad B_{0} {\left|0\right\rangle } \\(1) \quad \left\langle 0 \right. "
+        r"{\left|0\right\rangle } {\left|0\right\rangle } \\(2) \quad {\left|0\right\rangle } \\"
+    )

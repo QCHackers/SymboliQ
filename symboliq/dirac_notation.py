@@ -98,10 +98,8 @@ class DiracNotation:
         if arg.func == InnerProduct:
             if arg == Bra(0) * Ket(0) or arg == Bra(1) * Ket(1):
                 return 1
-            elif arg == Bra(1) * Ket(0) or arg == Bra(0) * Ket(1):
-                return 0
             else:
-                raise ValueError("Unhandled")
+                return 0
         if any(item in bases_matrices for item in list(arg.args)):
             arg = arg.subs([(B0, b_0), (B1, b_1), (B2, b_2)])
             return self.my_simplify_3(arg)
@@ -135,8 +133,6 @@ class DiracNotation:
                 for i in constants:
                     calc = calc * i
                 return calc
-            else:
-                return new_term
         elif arg.func == Add:
             added_term = 0
             for i in arg.args:
@@ -152,12 +148,6 @@ class DiracNotation:
                     tansors.append(self.my_simplify_3(j))
                 final_state_vec = final_state_vec + TensorProduct(*tansors)
             return final_state_vec
-        elif arg.func == TensorProduct:
-            tensors = []
-            for i in arg.args:
-                tensors.append(self.my_simplify_3(i))
-
-            return TensorProduct(*tensors)
 
     def multiple_operations(self, arg):
         rev_args = arg.args[::-1]
