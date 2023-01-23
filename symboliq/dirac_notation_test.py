@@ -2,7 +2,6 @@ from sympy import sqrt
 from sympy.physics.quantum import Ket, TensorProduct
 
 from symboliq.dirac_notation import (
-    b_3,
     ket_0,
     ket_1,
     X,
@@ -10,22 +9,24 @@ from symboliq.dirac_notation import (
     H,
     bra_0,
     CX,
-    b_1,
-    b_2,
     DiracNotation,
     B0,
     Ket0,
+    B1,
+    b_1,
+    b_2,
+    b_3,
 )
 
 
-def test_base_reduce():
+def test_base_reduce() -> None:
     dirac_notation = DiracNotation()
     # B_0 * |0> = |0>
     assert dirac_notation.multiple_operations(B0 * Ket0) == Ket0
     # B_0 * |1> = 0
     assert dirac_notation.multiple_operations(ket_0 * bra_0 * ket_1) == 0
     # B_1 * |0> = 0
-    assert dirac_notation.multiple_operations(b_1 * ket_0) == 0
+    assert dirac_notation.multiple_operations(B1 * ket_0) == 0
     # B_1 * |1> = |0>
     assert dirac_notation.multiple_operations(b_1 * ket_1) == Ket(0)
     # B_2 * |0> = |1>
@@ -40,7 +41,7 @@ def test_base_reduce():
     assert dirac_notation.multiple_operations(b_3 * ket_1) == Ket(1)
 
 
-def test_single_qubit_gate_reduce():
+def test_single_qubit_gate_reduce() -> None:
     dirac_notation = DiracNotation()
     # X * |0> = |1>
     assert dirac_notation.multiple_operations(X * ket_0) == Ket(1)
@@ -64,7 +65,7 @@ def test_single_qubit_gate_reduce():
     assert dirac_notation.multiple_operations(ket_0 * bra_0 * ket_0) == Ket(0)
 
 
-def test_two_qubit_gate_reduce():
+def test_two_qubit_gate_reduce() -> None:
     dirac_notation = DiracNotation()
     # CX * |00> = |00>
     assert dirac_notation.multiple_operations(CX * TensorProduct(ket_0, ket_0)) == TensorProduct(
@@ -84,7 +85,7 @@ def test_two_qubit_gate_reduce():
     )
 
 
-def test_circuit_reduce():
+def test_circuit_reduce() -> None:
     dirac_notation = DiracNotation()
     assert dirac_notation.multiple_operations(I_2 * X * X * Ket0) == Ket0
 
@@ -100,7 +101,7 @@ def test_circuit_reduce():
     ) == sqrt(2) / 2 * TensorProduct(Ket(0), Ket(0)) + sqrt(2) / 2 * TensorProduct(Ket(1), Ket(1))
 
 
-def test_get_steps_latex():
+def test_get_steps_latex() -> None:
     dirac_notation = DiracNotation()
     # B_0 * |0> = |0>
     assert (
