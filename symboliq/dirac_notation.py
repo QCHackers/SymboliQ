@@ -13,8 +13,6 @@ from sympy.physics.quantum import (
 )
 
 ket_0 = Ket(0)
-
-Ket0 = ket_0
 bra_0 = Dagger(ket_0)
 ket_1 = Ket(1)
 bra_1 = Dagger(ket_1)
@@ -26,63 +24,23 @@ B0 = sympy.Symbol("B_{0}")
 B1 = sympy.Symbol("B_{1}")
 B2 = sympy.Symbol("B_{2}")
 B3 = sympy.Symbol("B_{3}")
-XSymbol = sympy.Symbol("X")
-X = b_1 + b_2
-H = (
+
+x = b_1 + b_2
+h = (
     1 / sympy.sqrt(2) * b_0
     + 1 / sympy.sqrt(2) * b_1
     + 1 / sympy.sqrt(2) * b_2
     + (-1 / sympy.sqrt(2)) * b_3
 )
-I_2 = b_0 + b_3
-CX = TensorProduct(b_0, I_2) + TensorProduct(b_3, X)
-
-bases_matrices = [B0, B1, B2, B3]
-base_states = [ket_0, ket_1]
-pauli_and_hadamard_gates = [X, I_2, H]
-
-
-def count_number_of_kets_and_bras(arg: sympy.Mul) -> int:
-    args = arg.args
-    count = 0
-    for i in args:
-        if isinstance(i, (OuterProduct, InnerProduct, Ket, Bra)):
-            count = count + 1
-    return count
-
-
-def factor_tensor(expr: Any, state_space: int) -> Any:
-    """Given sqrt(2)*(|0><0|*|0>)x((|0><0| + |1><1|)*|0>)/2,
-    returns
-
-    [sqrt(2)*(|0><0|*|0>), ((|0><0| + |1><1|)*|0>)/2]
-
-    """
-    tensors = []
-    constant = []
-    additions = []
-
-    if expr.func == sympy.Add:
-        for ar in expr.args:
-            additions.append(factor_tensor(ar, state_space))
-        return additions
-
-    if expr.func == sympy.Mul:
-        for ar in expr.args:
-            if ar.func == TensorProduct:
-                tensors = list(ar.args)
-            else:
-                constant.append(ar)
-        for i in constant:
-            tensors[0] = tensors[0] * i
-    if expr.func == TensorProduct:
-        for ar in expr.args:
-            tensors.append(ar)
-    return tensors
+i = b_0 + b_3
+cx = TensorProduct(b_0, i) + TensorProduct(b_3, x)
 
 
 class DiracNotation:
     steps: List[sympy.Expr] = []
+    bases_matrices = [B0, B1, B2, B3]
+    base_states = [ket_0, ket_1]
+    pauli_and_hadamard_gates = [x, i, h]
 
     def __init__(self, expr: sympy.Mul):
         self.expr = expr
@@ -98,6 +56,43 @@ class DiracNotation:
         for k, l in enumerate(expr_list):
             latex_str = latex_str + rf"({k}) \quad {l} \\"
         return latex_str
+
+    def _count_number_of_kets_and_bras(self, arg: sympy.Mul) -> int:
+        args = arg.args
+        count = 0
+        for i in args:
+            if isinstance(i, (OuterProduct, InnerProduct, Ket, Bra)):
+                count = count + 1
+        return count
+
+    def _factor_tensor(self, expr: Any, state_space: int) -> Any:
+        """Given sqrt(2)*(|0><0|*|0>)x((|0><0| + |1><1|)*|0>)/2,
+        returns
+
+        [sqrt(2)*(|0><0|*|0>), ((|0><0| + |1><1|)*|0>)/2]
+
+        """
+        tensors = []
+        constant = []
+        additions = []
+
+        if expr.func == sympy.Add:
+            for ar in expr.args:
+                additions.append(self._factor_tensor(ar, state_space))
+            return additions
+
+        if expr.func == sympy.Mul:
+            for ar in expr.args:
+                if ar.func == TensorProduct:
+                    tensors = list(ar.args)
+                else:
+                    constant.append(ar)
+            for i in constant:
+                tensors[0] = tensors[0] * i
+        if expr.func == TensorProduct:
+            for ar in expr.args:
+                tensors.append(ar)
+        return tensors
 
     def _base_reduce(self, arg: sympy.physics.quantum.InnerProduct) -> sympy.Integer:
         if arg == Bra(0) * Ket(0) or arg == Bra(1) * Ket(1):
@@ -136,7 +131,7 @@ class DiracNotation:
     def _tensor_reduce(self, arg: sympy.Expr) -> sympy.Expr:
         final_state_vec = sympy.Integer(0)
         mes = tensor_product_simp(arg.expand(tensorproduct=True))
-        mes = factor_tensor(mes, 2)
+        mes = self._factor_tensor(mes, 2)
         for i in mes:
             tansors = []
             for j in i:
@@ -148,23 +143,21 @@ class DiracNotation:
     def _gate_reduce(self, arg: sympy.Expr) -> sympy.Expr:
         if isinstance(arg, InnerProduct):
             return self._base_reduce(arg)
-        # b_0 = ket_0 * bra_0
-        # b_1 = ket_0 * bra_1
-        # b_2 = ket_1 * bra_0
-        # b_3 = ket_1 * bra_1
-        elif any(item in bases_matrices for item in list(arg.args)):
+
+        elif any(item in self.bases_matrices for item in list(arg.args)):
             arg = arg.subs([(B0, b_0), (B1, b_1), (B2, b_2)])
             return self._gate_reduce(arg)
 
-        elif any(item in pauli_and_hadamard_gates for item in list(arg.args)):
-            arg = arg.subs([(XSymbol, X)])
+        elif any(item in self.pauli_and_hadamard_gates for item in list(arg.args)):
+            X = sympy.Symbol("X")
+            arg = arg.subs([(X, x)])
             # Distributivity of matrix multiplication over addition
             return self._gate_reduce(arg.expand())
 
         elif (
             isinstance(arg, sympy.Mul)
-            and count_number_of_kets_and_bras(arg) == 2
-            and any(item in base_states for item in list(arg.args))
+            and self._count_number_of_kets_and_bras(arg) == 2
+            and any(item in self.base_states for item in list(arg.args))
         ):
             return self._mul_reduce(arg)
         elif arg.func == sympy.Add:
