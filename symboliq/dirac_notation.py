@@ -20,10 +20,10 @@ b_0 = ket_0 * bra_0
 b_1 = ket_0 * bra_1
 b_2 = ket_1 * bra_0
 b_3 = ket_1 * bra_1
-B0 = sympy.Symbol("B_{0}")
-B1 = sympy.Symbol("B_{1}")
-B2 = sympy.Symbol("B_{2}")
-B3 = sympy.Symbol("B_{3}")
+B_0 = sympy.Symbol("B_{0}")
+B_1 = sympy.Symbol("B_{1}")
+B_2 = sympy.Symbol("B_{2}")
+B_3 = sympy.Symbol("B_{3}")
 
 x = b_1 + b_2
 h = (
@@ -38,7 +38,7 @@ cx = TensorProduct(b_0, i) + TensorProduct(b_3, x)
 
 class DiracNotation:
     steps: List[sympy.Expr] = []
-    bases_matrices = [B0, B1, B2, B3]
+    bases_matrices = [B_0, B_1, B_2, B_3]
     base_states = [ket_0, ket_1]
     pauli_and_hadamard_gates = [x, i, h]
 
@@ -51,7 +51,7 @@ class DiracNotation:
     def __repr__(self) -> str:
         return sympy.srepr(self.expr)
 
-    def _get_steps(self) -> List[sympy.Expr]:
+    def _get_steps_as_list(self) -> List[sympy.Expr]:
         self.steps = []
         self.steps.append(self.expr)
         self.operate_reduce()
@@ -61,15 +61,15 @@ class DiracNotation:
 
         return expr_list
 
-    def get_steps_plain(self) -> str:
-        expr_list = self._get_steps()
+    def get_steps(self) -> str:
+        expr_list = self._get_steps_as_list()
         plain_str: str = ""
         for k, l in enumerate(expr_list):
             plain_str = plain_str + f"({k}) {l}\n"
         return plain_str
 
     def get_steps_latex(self) -> str:
-        expr_list = self._get_steps()
+        expr_list = self._get_steps_as_list()
         latex_str: str = ""
         for k, l in enumerate(expr_list):
             latex_str = latex_str + rf"({k}) \quad {sympy.latex(l)} \\"
@@ -165,7 +165,7 @@ class DiracNotation:
             return self._base_reduce(arg)
 
         elif any(item in self.bases_matrices for item in list(arg.args)):
-            arg = arg.subs([(B0, b_0), (B1, b_1), (B2, b_2)])
+            arg = arg.subs([(B_0, b_0), (B_1, b_1), (B_2, b_2)])
             return self._gate_reduce(arg, add_step)
 
         elif any(item in self.pauli_and_hadamard_gates for item in list(arg.args)):

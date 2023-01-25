@@ -2,8 +2,8 @@ from sympy import sqrt
 from sympy.physics.quantum import TensorProduct
 
 from symboliq.dirac_notation import (
-    B0,
-    B1,
+    B_0,
+    B_1,
     DiracNotation,
     b_1,
     b_2,
@@ -23,16 +23,16 @@ def test_str() -> None:
 
 
 def test_repr() -> None:
-    assert repr(DiracNotation(B0 * ket_0)) == "Mul(Symbol('B_{0}'), Ket(Integer(0)))"
+    assert repr(DiracNotation(B_0 * ket_0)) == "Mul(Symbol('B_{0}'), Ket(Integer(0)))"
 
 
 def test_base_reduce() -> None:
     # B_0 * |0> = |0>
-    assert DiracNotation(B0 * ket_0).operate_reduce() == ket_0
+    assert DiracNotation(B_0 * ket_0).operate_reduce() == ket_0
     # B_0 * |1> = 0
     assert DiracNotation(ket_0 * bra_0 * ket_1).operate_reduce() == 0
     # B_1 * |0> = 0
-    assert DiracNotation(B1 * ket_0).operate_reduce() == 0
+    assert DiracNotation(B_1 * ket_0).operate_reduce() == 0
     # B_1 * |1> = |0>
     assert DiracNotation(b_1 * ket_1).operate_reduce() == ket_0
     # B_2 * |0> = |1>
@@ -106,7 +106,7 @@ def test_circuit_reduce() -> None:
 
 def test_get_steps() -> None:
     assert (
-        DiracNotation(x * ket_1).get_steps_plain()
+        DiracNotation(x * ket_1).get_steps()
         == """(0) (|0><1| + |1><0|)*|1>
 (1) |0><1|*|1> + |1><0|*|1>
 (2) |0>
@@ -117,7 +117,7 @@ def test_get_steps() -> None:
 def test_get_steps_latex() -> None:
     # B_0 * |0> = |0>
     assert (
-        DiracNotation(B0 * ket_0).get_steps_latex()
+        DiracNotation(B_0 * ket_0).get_steps_latex()
         == r"(0) \quad B_{0} {\left|0\right\rangle } \\(1) \quad \left\langle 0 \right. "
         r"{\left|0\right\rangle } {\left|0\right\rangle } \\(2) \quad {\left|0\right\rangle } \\"
     )
