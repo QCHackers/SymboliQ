@@ -42,19 +42,37 @@ class DiracNotation:
     base_states = [ket_0, ket_1]
     pauli_and_hadamard_gates = [x, i, h]
 
-    def __init__(self, expr: sympy.Mul):
+    def __init__(self, expr: sympy.Expr):
         self.expr = expr
 
-    def get_steps_latex(self) -> str:
+    def __str__(self) -> str:
+        return str(self.expr)
+
+    def __repr__(self) -> str:
+        return sympy.srepr(self.expr)
+
+    def _get_steps(self) -> List[sympy.Expr]:
         self.steps = []
         self.steps.append(self.expr)
-        self._gate_reduce(self.expr)
+        self.operate_reduce()
         expr_list = []
         for i in self.steps:
-            expr_list.append(sympy.latex(i))
+            expr_list.append(i)
+
+        return expr_list
+
+    def get_steps_plain(self) -> str:
+        expr_list = self._get_steps()
+        plain_str: str = ""
+        for k, l in enumerate(expr_list):
+            plain_str = plain_str + f"({k}) {l}\n"
+        return plain_str
+
+    def get_steps_latex(self) -> str:
+        expr_list = self._get_steps()
         latex_str: str = ""
         for k, l in enumerate(expr_list):
-            latex_str = latex_str + rf"({k}) \quad {l} \\"
+            latex_str = latex_str + rf"({k}) \quad {sympy.latex(l)} \\"
         return latex_str
 
     def _count_number_of_kets_and_bras(self, arg: sympy.Mul) -> int:
@@ -100,7 +118,7 @@ class DiracNotation:
         else:
             return sympy.Integer(0)
 
-    def _mul_reduce(self, arg: sympy.Expr) -> sympy.Expr:
+    def _mul_reduce(self, arg: sympy.Expr, add_step: bool) -> sympy.Expr:
         brakets = []
         constants = []
         new_term = sympy.Integer(1)
@@ -109,62 +127,69 @@ class DiracNotation:
             if isinstance(term, (OuterProduct, Ket, Bra)):
                 brakets.append(term)
             elif isinstance(term, InnerProduct):
-                self.steps.append(arg)
-                new_term = new_term * self._gate_reduce(term) * args[1]
-                self.steps.append(new_term)
+                if add_step:
+                    self.steps.append(arg)
+                new_term = new_term * self._gate_reduce(term, add_step) * args[1]
+                if add_step:
+                    self.steps.append(new_term)
                 return new_term
             elif isinstance(term, (Half, sympy.Pow, sympy.Rational)):
                 constants.append(term)
-        calc = self._gate_reduce(brakets[0].args[0] * (brakets[0].args[1] * brakets[1]))
+        calc = self._gate_reduce(brakets[0].args[0] * (brakets[0].args[1] * brakets[1]), add_step)
         for i in constants:
             calc = calc * i
         assert isinstance(calc, sympy.Expr)
         return calc
 
-    def _add_reduce(self, arg: sympy.Expr) -> sympy.Expr:
+    def _add_reduce(self, arg: sympy.Expr, add_step: bool) -> sympy.Expr:
         added_term: sympy.Expr = sympy.Integer(0)
         for i in arg.args:
             assert isinstance(i, sympy.Expr)
-            added_term = added_term + self._gate_reduce(i)
+            added_term = added_term + self._gate_reduce(i, add_step)
         return added_term
 
-    def _tensor_reduce(self, arg: sympy.Expr) -> sympy.Expr:
+    def _tensor_reduce(self, arg: sympy.Expr, add_step: bool) -> sympy.Expr:
         final_state_vec = sympy.Integer(0)
         mes = tensor_product_simp(arg.expand(tensorproduct=True))
         mes = self._factor_tensor(mes, 2)
         for i in mes:
             tansors = []
             for j in i:
-                tansors.append(self._gate_reduce(j))
+                tansors.append(self._gate_reduce(j, add_step))
             final_state_vec = final_state_vec + TensorProduct(*tansors)
         assert isinstance(final_state_vec, sympy.Expr)
         return final_state_vec
 
-    def _gate_reduce(self, arg: sympy.Expr) -> sympy.Expr:
+    def _gate_reduce(self, arg: sympy.Expr, add_step: bool) -> sympy.Expr:
         if isinstance(arg, InnerProduct):
             return self._base_reduce(arg)
 
         elif any(item in self.bases_matrices for item in list(arg.args)):
             arg = arg.subs([(B0, b_0), (B1, b_1), (B2, b_2)])
-            return self._gate_reduce(arg)
+            return self._gate_reduce(arg, add_step)
 
         elif any(item in self.pauli_and_hadamard_gates for item in list(arg.args)):
             X = sympy.Symbol("X")
             arg = arg.subs([(X, x)])
             # Distributivity of matrix multiplication over addition
-            return self._gate_reduce(arg.expand())
+            arg = arg.expand()
+            self.steps.append(arg)
+            arg = self._gate_reduce(arg, add_step=False)
+            self.steps.append(arg)
+            return arg
 
         elif (
             isinstance(arg, sympy.Mul)
             and self._count_number_of_kets_and_bras(arg) == 2
             and any(item in self.base_states for item in list(arg.args))
         ):
-            return self._mul_reduce(arg)
+            return self._mul_reduce(arg, add_step)
         elif arg.func == sympy.Add:
-            return self._add_reduce(arg)
-        return self._tensor_reduce(arg)
+            return self._add_reduce(arg, add_step)
+        return self._tensor_reduce(arg, add_step)
 
     def operate_reduce(self) -> sympy.Expr:
+        assert isinstance(self.expr, sympy.Mul)
         rev_args = self.expr.args[::-1]
         state = rev_args[0]
         for i in range(1, len(rev_args)):
@@ -173,7 +198,8 @@ class DiracNotation:
                 exp = rev_args_by_index.exp
                 base = rev_args_by_index.base
                 for _ in range(exp):
-                    state = self._gate_reduce(base * state)
+                    state = self._gate_reduce(base * state, True)
+
             else:
-                state = self._gate_reduce(rev_args_by_index * state)
+                state = self._gate_reduce(rev_args_by_index * state, True)
         return state

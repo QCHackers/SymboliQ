@@ -18,6 +18,14 @@ from symboliq.dirac_notation import (
 )
 
 
+def test_str() -> None:
+    assert str(DiracNotation(ket_0)) == "|0>"
+
+
+def test_repr() -> None:
+    assert repr(DiracNotation(B0 * ket_0)) == "Mul(Symbol('B_{0}'), Ket(Integer(0)))"
+
+
 def test_base_reduce() -> None:
     # B_0 * |0> = |0>
     assert DiracNotation(B0 * ket_0).operate_reduce() == ket_0
@@ -93,6 +101,16 @@ def test_circuit_reduce() -> None:
         cx * TensorProduct(h, i) * TensorProduct(ket_0, ket_0)
     ).operate_reduce() == sqrt(2) / 2 * TensorProduct(ket_0, ket_0) + sqrt(2) / 2 * TensorProduct(
         ket_1, ket_1
+    )
+
+
+def test_get_steps() -> None:
+    assert (
+        DiracNotation(x * ket_1).get_steps_plain()
+        == """(0) (|0><1| + |1><0|)*|1>
+(1) |0><1|*|1> + |1><0|*|1>
+(2) |0>
+"""
     )
 
 
