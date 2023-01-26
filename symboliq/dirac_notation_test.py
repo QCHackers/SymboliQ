@@ -1,6 +1,9 @@
 from sympy import sqrt
 from sympy.physics.quantum import TensorProduct
+from sympy.physics.quantum.gate import XGate
+from sympy.physics.quantum.qubit import Qubit
 
+import symboliq
 from symboliq.dirac_notation import (
     B_0,
     B_1,
@@ -24,6 +27,20 @@ def test_str() -> None:
 
 def test_repr() -> None:
     assert repr(DiracNotation(B_0 * ket_0)) == "Mul(Symbol('B_{0}'), Ket(Integer(0)))"
+
+
+def test_qapply() -> None:
+    assert symboliq.qapply(XGate(0) * Qubit("0")) == ket_1
+
+
+def test_get_simp_steps() -> None:
+    assert (
+        symboliq.get_simp_steps(XGate(0) * Qubit("0"))
+        == """(0) X(0)*|0>
+(1) |0><1|*|0> + |1><0|*|0>
+(2) |1>
+"""
+    )
 
 
 def test_base_reduce() -> None:

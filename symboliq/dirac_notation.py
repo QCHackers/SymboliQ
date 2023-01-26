@@ -11,6 +11,8 @@ from sympy.physics.quantum import (
     TensorProduct,
     tensor_product_simp,
 )
+from sympy.physics.quantum.gate import XGate
+from sympy.physics.quantum.qubit import Qubit
 
 ket_0 = Ket(0)
 bra_0 = Dagger(ket_0)
@@ -39,8 +41,8 @@ cx = TensorProduct(b_0, i) + TensorProduct(b_3, x)
 class DiracNotation:
     steps: List[sympy.Expr] = []
     bases_matrices = [B_0, B_1, B_2, B_3]
-    base_states = [ket_0, ket_1]
-    pauli_and_hadamard_gates = [x, i, h]
+    base_states = [ket_0, ket_1, Qubit(0)]
+    pauli_and_hadamard_gates = [x, i, h, XGate(0)]
 
     def __init__(self, expr: sympy.Expr):
         self.expr = expr
@@ -79,7 +81,7 @@ class DiracNotation:
         args = arg.args
         count = 0
         for i in args:
-            if isinstance(i, (OuterProduct, InnerProduct, Ket, Bra)):
+            if isinstance(i, (OuterProduct, InnerProduct, Ket, Bra, Qubit)):
                 count = count + 1
         return count
 
@@ -113,7 +115,12 @@ class DiracNotation:
         return tensors
 
     def _base_reduce(self, arg: sympy.physics.quantum.InnerProduct) -> sympy.Integer:
-        if arg == Bra(0) * Ket(0) or arg == Bra(1) * Ket(1):
+        if (
+            arg == Bra(0) * Ket(0)
+            or arg == Bra(1) * Ket(1)
+            or arg == Bra(0) * Qubit(0)
+            or arg == Bra(1) * Qubit(1)
+        ):
             return sympy.Integer(1)
         else:
             return sympy.Integer(0)
@@ -124,7 +131,7 @@ class DiracNotation:
         new_term = sympy.Integer(1)
         args = arg.args
         for term in args:
-            if isinstance(term, (OuterProduct, Ket, Bra)):
+            if isinstance(term, (OuterProduct, Ket, Bra, Qubit)):
                 brakets.append(term)
             elif isinstance(term, InnerProduct):
                 if add_step:
@@ -135,6 +142,7 @@ class DiracNotation:
                 return new_term
             elif isinstance(term, (Half, sympy.Pow, sympy.Rational)):
                 constants.append(term)
+
         calc = self._gate_reduce(brakets[0].args[0] * (brakets[0].args[1] * brakets[1]), add_step)
         for i in constants:
             calc = calc * i
@@ -169,8 +177,7 @@ class DiracNotation:
             return self._gate_reduce(arg, add_step)
 
         elif any(item in self.pauli_and_hadamard_gates for item in list(arg.args)):
-            X = sympy.Symbol("X")
-            arg = arg.subs([(X, x)])
+            arg = arg.subs([(XGate(0), x)])
             # Distributivity of matrix multiplication over addition
             arg = arg.expand()
             self.steps.append(arg)
@@ -203,3 +210,11 @@ class DiracNotation:
             else:
                 state = self._gate_reduce(rev_args_by_index * state, True)
         return state
+
+
+def qapply(expr: sympy.Expr) -> sympy.Expr:
+    return DiracNotation(expr).operate_reduce()
+
+
+def get_simp_steps(expr: sympy.Expr) -> str:
+    return DiracNotation(expr).get_steps()
