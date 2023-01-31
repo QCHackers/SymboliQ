@@ -3,7 +3,7 @@
 SymboliQ is an extension of [Sympy's Quantum Mechanics subpackage](https://docs.sympy.org/latest/modules/physics/quantum/index.html).
 It's the only Python package we know of that allows for simulation of quantum circuits via 
 [Dirac Notation](https://en.wikipedia.org/wiki/Bra%E2%80%93ket_notation).
-See the [introductory notebook](https://github.com/vtomole/SymboliQ/blob/main/examples/dirac_notation.ipynb)
+See the [poster](https://github.com/vtomole/SymboliQ/blob/main/examples/poster.pdf)
 for an in-depth explanation.
 
 ## Installation
