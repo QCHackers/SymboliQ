@@ -11,7 +11,7 @@ from sympy.physics.quantum import (
     TensorProduct,
     tensor_product_simp,
 )
-from sympy.physics.quantum.gate import XGate
+from sympy.physics.quantum.gate import HadamardGate, IdentityGate, XGate
 from sympy.physics.quantum.qubit import Qubit
 
 ket_0 = Ket(0)
@@ -28,6 +28,7 @@ B_2 = sympy.Symbol("B_{2}")
 B_3 = sympy.Symbol("B_{3}")
 
 x = b_1 + b_2
+z = b_0 - b_3
 h = (
     1 / sympy.sqrt(2) * b_0
     + 1 / sympy.sqrt(2) * b_1
@@ -40,22 +41,31 @@ cx = TensorProduct(b_0, i) + TensorProduct(b_3, x)
 
 class DiracNotation:
     steps: List[sympy.Expr] = []
-    bases_matrices = [B_0, B_1, B_2, B_3]
-    base_states = [ket_0, ket_1, Qubit(0)]
-    pauli_and_hadamard_gates = [x, i, h, XGate(0)]
+    base_symbols = [B_0, B_1, B_2, B_3]
 
     def __init__(self, expr: sympy.Expr):
-        self.expr = expr
+        self._expr = expr
+        self._dimension = self._count_number_of_tensor_products(expr)
 
     def __str__(self) -> str:
-        return str(self.expr)
+        return str(self._expr)
 
     def __repr__(self) -> str:
-        return sympy.srepr(self.expr)
+        return sympy.srepr(self._expr)
+
+    def _check_pauli_hadamard(self, arg):
+        pauli_and_hadamard_dirac = [i, x, z, h]
+        pauli_and_hadamard_gates = (XGate, IdentityGate, HadamardGate)
+        return any(item in pauli_and_hadamard_dirac for item in list(arg.args)) or any(
+            isinstance(item, pauli_and_hadamard_gates) for item in list(arg.args)
+        )
+
+    def _check_base_states(self, arg):
+        return any(isinstance(item, Ket) for item in list(arg.args))
 
     def _get_steps_as_list(self) -> List[sympy.Expr]:
         self.steps = []
-        self.steps.append(self.expr)
+        self.steps.append(self._expr)
         self.operate_reduce()
         expr_list = []
         for i in self.steps:
@@ -82,6 +92,14 @@ class DiracNotation:
         count = 0
         for i in args:
             if isinstance(i, (OuterProduct, InnerProduct, Ket, Bra, Qubit)):
+                count = count + 1
+        return count
+
+    def _count_number_of_tensor_products(self, arg: sympy.Mul) -> int:
+        args = arg.args
+        count = 0
+        for i in args:
+            if isinstance(i, TensorProduct):
                 count = count + 1
         return count
 
@@ -159,7 +177,7 @@ class DiracNotation:
     def _tensor_reduce(self, arg: sympy.Expr, add_step: bool) -> sympy.Expr:
         final_state_vec = sympy.Integer(0)
         mes = tensor_product_simp(arg.expand(tensorproduct=True))
-        mes = self._factor_tensor(mes, 2)
+        mes = self._factor_tensor(mes, self._dimension)
         for i in mes:
             tansors = []
             for j in i:
@@ -172,11 +190,12 @@ class DiracNotation:
         if isinstance(arg, InnerProduct):
             return self._base_reduce(arg)
 
-        elif any(item in self.bases_matrices for item in list(arg.args)):
+        elif any(item in self.base_symbols for item in list(arg.args)):
             arg = arg.subs([(B_0, b_0), (B_1, b_1), (B_2, b_2)])
             return self._gate_reduce(arg, add_step)
 
-        elif any(item in self.pauli_and_hadamard_gates for item in list(arg.args)):
+        elif self._check_pauli_hadamard(arg):
+            print(arg)
             arg = arg.subs([(XGate(0), x)])
             # Distributivity of matrix multiplication over addition
             arg = arg.expand()
@@ -188,7 +207,7 @@ class DiracNotation:
         elif (
             isinstance(arg, sympy.Mul)
             and self._count_number_of_kets_and_bras(arg) == 2
-            and any(item in self.base_states for item in list(arg.args))
+            and self._check_base_states(arg)
         ):
             return self._mul_reduce(arg, add_step)
         elif arg.func == sympy.Add:
@@ -196,8 +215,8 @@ class DiracNotation:
         return self._tensor_reduce(arg, add_step)
 
     def operate_reduce(self) -> sympy.Expr:
-        assert isinstance(self.expr, sympy.Mul)
-        rev_args = self.expr.args[::-1]
+        assert isinstance(self._expr, sympy.Mul)
+        rev_args = self._expr.args[::-1]
         state = rev_args[0]
         for i in range(1, len(rev_args)):
             rev_args_by_index = rev_args[i]
