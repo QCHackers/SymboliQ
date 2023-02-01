@@ -1,6 +1,6 @@
 from sympy import sqrt
 from sympy.physics.quantum import TensorProduct
-from sympy.physics.quantum.gate import XGate
+from sympy.physics.quantum.gate import HadamardGate, IdentityGate, XGate, YGate, ZGate
 from sympy.physics.quantum.qubit import Qubit
 
 import symboliq
@@ -30,7 +30,13 @@ def test_repr() -> None:
 
 
 def test_qapply() -> None:
+    assert symboliq.qapply(IdentityGate(0) * Qubit("0")) == ket_0
     assert symboliq.qapply(XGate(0) * Qubit("0")) == ket_1
+    assert symboliq.qapply(YGate(0) * Qubit("1")) == ket_0
+    assert symboliq.qapply(ZGate(0) * Qubit("1")) == -ket_1
+    assert (
+        symboliq.qapply(HadamardGate(0) * Qubit("0")) == 1 / sqrt(2) * ket_0 + 1 / sqrt(2) * ket_1
+    )
 
 
 def test_get_simp_steps() -> None:
