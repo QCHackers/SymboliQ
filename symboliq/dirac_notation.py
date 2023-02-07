@@ -26,7 +26,6 @@ B_0 = sympy.Symbol("B_{0}")
 B_1 = sympy.Symbol("B_{1}")
 B_2 = sympy.Symbol("B_{2}")
 B_3 = sympy.Symbol("B_{3}")
-
 x = b_1 + b_2
 y = -1j * b_1 + 1j * b_2
 z = b_0 - b_3
@@ -40,43 +39,27 @@ i = b_0 + b_3
 cx = TensorProduct(b_0, i) + TensorProduct(b_3, x)
 
 
+def qapply(expr: sympy.Expr) -> sympy.Expr:
+    return DiracNotation(expr).operate_reduce()
+
+
+def get_simp_steps(expr: sympy.Expr) -> str:
+    return DiracNotation(expr).get_steps()
+
+
 class DiracNotation:
     steps: List[sympy.Expr] = []
     base_symbols = [B_0, B_1, B_2, B_3]
 
     def __init__(self, expr: sympy.Expr):
         self._expr = expr
-        self._num_qubits = self._count_number_of_tensor_products(expr) + 1
+        self._num_qubits = _count_number_of_tensor_products(expr) + 1
 
     def __str__(self) -> str:
         return str(self._expr)
 
     def __repr__(self) -> str:
         return sympy.srepr(self._expr)
-
-    def _check_pauli_hadamard(self, arg: sympy.Expr) -> bool:
-        pauli_and_hadamard_dirac = [i, x, z, h]
-        pauli_and_hadamard_gates = (IdentityGate, XGate, YGate, ZGate, HadamardGate)
-        return any(item in pauli_and_hadamard_dirac for item in list(arg.args)) or any(
-            isinstance(item, pauli_and_hadamard_gates) for item in list(arg.args)
-        )
-
-    def _sub_pauli_hadamard(self, arg: sympy.Expr) -> sympy.Expr:
-        for a in arg.args:
-            if isinstance(a, IdentityGate):
-                arg = arg.subs(a, i)
-            elif isinstance(a, XGate):
-                arg = arg.subs(a, x)
-            elif isinstance(a, YGate):
-                arg = arg.subs(a, y)
-            elif isinstance(a, ZGate):
-                arg = arg.subs(a, z)
-            elif isinstance(a, HadamardGate):
-                arg = arg.subs(a, h)
-        return arg
-
-    def _check_base_states(self, arg: sympy.Mul) -> bool:
-        return any(isinstance(item, Ket) for item in list(arg.args))
 
     def _get_steps_as_list(self) -> List[sympy.Expr]:
         self.steps = []
@@ -89,6 +72,11 @@ class DiracNotation:
         return expr_list
 
     def get_steps(self) -> str:
+        """Returns the steps the program went through to simplify
+        a given expression
+            Returns:
+                    The steps as a string
+        """
         expr_list = self._get_steps_as_list()
         plain_str: str = ""
         for k, l in enumerate(expr_list):
@@ -96,67 +84,22 @@ class DiracNotation:
         return plain_str
 
     def get_steps_latex(self) -> str:
+        """Returns the steps the program went through to simplify
+        a given expression in latex representation that is capable of
+        being printed in for example
+            >> from IPython.display import Math
+            >> dirac_notation = DiracNotation(x * ket_0)
+            >> Math(dirac_notation.get_steps_latex())
+
+
+            Returns:
+                    The steps represented in latex notation as a string
+        """
         expr_list = self._get_steps_as_list()
         latex_str: str = ""
         for k, l in enumerate(expr_list):
             latex_str = latex_str + rf"({k}) \quad {sympy.latex(l)} \\"
         return latex_str
-
-    def _count_number_of_kets_and_bras(self, arg: sympy.Mul) -> int:
-        args = arg.args
-        count = 0
-        for i in args:
-            if isinstance(i, (OuterProduct, InnerProduct, Ket, Bra, Qubit)):
-                count = count + 1
-        return count
-
-    def _count_number_of_tensor_products(self, arg: sympy.Expr) -> int:
-        args = arg.args
-        count = 0
-        for i in args:
-            if isinstance(i, TensorProduct):
-                count = count + 1
-        return count
-
-    def _factor_tensor(self, expr: Any, state_space: int) -> Any:
-        """Given sqrt(2)*(|0><0|*|0>)x((|0><0| + |1><1|)*|0>)/2,
-        returns
-
-        [sqrt(2)*(|0><0|*|0>), ((|0><0| + |1><1|)*|0>)/2]
-
-        """
-        tensors = []
-        constant = []
-        additions = []
-
-        if expr.func == sympy.Add:
-            for ar in expr.args:
-                additions.append(self._factor_tensor(ar, state_space))
-            return additions
-
-        if expr.func == sympy.Mul:
-            for ar in expr.args:
-                if ar.func == TensorProduct:
-                    tensors = list(ar.args)
-                else:
-                    constant.append(ar)
-            for i in constant:
-                tensors[0] = tensors[0] * i
-        if expr.func == TensorProduct:
-            for ar in expr.args:
-                tensors.append(ar)
-        return tensors
-
-    def _base_reduce(self, arg: sympy.physics.quantum.InnerProduct) -> sympy.Integer:
-        if (
-            arg == Bra(0) * Ket(0)
-            or arg == Bra(1) * Ket(1)
-            or arg == Bra(0) * Qubit(0)
-            or arg == Bra(1) * Qubit(1)
-        ):
-            return sympy.Integer(1)
-        else:
-            return sympy.Integer(0)
 
     def _mul_reduce(self, arg: sympy.Expr, add_step: bool) -> sympy.Expr:
         brakets = []
@@ -192,7 +135,7 @@ class DiracNotation:
     def _tensor_reduce(self, arg: sympy.Expr, add_step: bool) -> sympy.Expr:
         final_state_vec = sympy.Integer(0)
         mes = tensor_product_simp(arg.expand(tensorproduct=True))
-        mes = self._factor_tensor(mes, self._num_qubits)
+        mes = _factor_tensor(mes, self._num_qubits)
         for i in mes:
             tansors = []
             for j in i:
@@ -203,15 +146,15 @@ class DiracNotation:
 
     def _gate_reduce(self, arg: sympy.Expr, add_step: bool) -> sympy.Expr:
         if isinstance(arg, InnerProduct):
-            return self._base_reduce(arg)
+            return _base_reduce(arg)
 
         elif any(item in self.base_symbols for item in list(arg.args)):
             arg = arg.subs([(B_0, b_0), (B_1, b_1), (B_2, b_2)])
             return self._gate_reduce(arg, add_step)
 
-        elif self._check_pauli_hadamard(arg):
+        elif _check_pauli_hadamard(arg):
 
-            arg = self._sub_pauli_hadamard(arg)
+            arg = _sub_pauli_hadamard(arg)
 
             # Distributivity of matrix multiplication over addition
             arg = arg.expand()
@@ -222,8 +165,8 @@ class DiracNotation:
 
         elif (
             isinstance(arg, sympy.Mul)
-            and self._count_number_of_kets_and_bras(arg) == 2
-            and self._check_base_states(arg)
+            and _count_number_of_kets_and_bras(arg) == 2
+            and any(isinstance(item, Ket) for item in list(arg.args))
         ):
             return self._mul_reduce(arg, add_step)
         elif arg.func == sympy.Add:
@@ -231,6 +174,12 @@ class DiracNotation:
         return self._tensor_reduce(arg, add_step)
 
     def operate_reduce(self) -> sympy.Expr:
+        """Iterates through an expression and simplifies incrementally while
+        keeping track of the steps that are taken to simplify it
+
+            Returns:
+                The simplified expression
+        """
         assert isinstance(self._expr, sympy.Mul)
         rev_args = self._expr.args[::-1]
         state = rev_args[0]
@@ -247,9 +196,110 @@ class DiracNotation:
         return state
 
 
-def qapply(expr: sympy.Expr) -> sympy.Expr:
-    return DiracNotation(expr).operate_reduce()
+def _check_pauli_hadamard(expr: sympy.Expr) -> bool:
+    """Tells you whether an expression contains at least one Pauli or Hadamard gate
+    Args:
+        expr: The expression
+    Returns:
+        True if expression contains at least one  Pauli or Hadamard gate
+         False otherwise
+    """
+    pauli_and_hadamard_dirac = [i, x, z, h]
+    pauli_and_hadamard_gates = (IdentityGate, XGate, YGate, ZGate, HadamardGate)
+    return any(item in pauli_and_hadamard_dirac for item in list(expr.args)) or any(
+        isinstance(item, pauli_and_hadamard_gates) for item in list(expr.args)
+    )
 
 
-def get_simp_steps(expr: sympy.Expr) -> str:
-    return DiracNotation(expr).get_steps()
+def _sub_pauli_hadamard(arg: sympy.Expr) -> sympy.Expr:
+    """Looks through an expression and replaced pauli and hadamard sympy gates with their
+    dirac notation equivalents
+        Args:
+            Any sympy expression
+        Returns:
+            Another sympy expression
+    """
+    for a in arg.args:
+        if isinstance(a, IdentityGate):
+            arg = arg.subs(a, i)
+        elif isinstance(a, XGate):
+            arg = arg.subs(a, x)
+        elif isinstance(a, YGate):
+            arg = arg.subs(a, y)
+        elif isinstance(a, ZGate):
+            arg = arg.subs(a, z)
+        elif isinstance(a, HadamardGate):
+            arg = arg.subs(a, h)
+    return arg
+
+
+def _count_number_of_kets_and_bras(arg: sympy.Mul) -> int:
+    args = arg.args
+    count = 0
+    for i in args:
+        if isinstance(i, (OuterProduct, InnerProduct, Ket, Bra, Qubit)):
+            count = count + 1
+    return count
+
+
+def _count_number_of_tensor_products(arg: sympy.Expr) -> int:
+    args = arg.args
+    count = 0
+    for i in args:
+        if isinstance(i, TensorProduct):
+            count = count + 1
+    return count
+
+
+def _base_reduce(inner_product: sympy.physics.quantum.InnerProduct) -> sympy.Integer:
+    """Expressions like Bra(0) * Ket(0).doit()) evaluate to <0|0> when they
+    should be evaluating to 1. This function bypasses that limitation
+               Args:
+                   inner_product: has to be a <b|k> where b and k are either 1 or 0
+               Returns:
+                   The evaluated inner product
+    """
+    same_bras_and_kets = [Bra(0) * Ket(0), Bra(0) * Qubit(0), Bra(1) * Ket(1), Bra(1) * Qubit(1)]
+    different_bras_and_kets = [
+        Bra(0) * Ket(1),
+        Bra(1) * Ket(0),
+        Bra(0) * Qubit(1),
+        Bra(1) * Qubit(0),
+    ]
+    assert inner_product in same_bras_and_kets + different_bras_and_kets
+
+    if inner_product in same_bras_and_kets:
+        return sympy.Integer(1)
+    else:
+        return sympy.Integer(0)
+
+
+def _factor_tensor(expr: Any, state_space: int) -> Any:
+    """For example, given sqrt(2)*(|0><0|*|0>)x((|0><0| + |1><1|)*|0>)/2,
+    returns [sqrt(2)*(|0><0|*|0>), ((|0><0| + |1><1|)*|0>)/2]
+        Args: The expression containing the tensors to factor
+        Return: A list of the tensored factors
+
+
+    """
+    tensors = []
+    constant = []
+    additions = []
+
+    if expr.func == sympy.Add:
+        for ar in expr.args:
+            additions.append(_factor_tensor(ar, state_space))
+        return additions
+
+    if expr.func == sympy.Mul:
+        for ar in expr.args:
+            if ar.func == TensorProduct:
+                tensors = list(ar.args)
+            else:
+                constant.append(ar)
+        for i in constant:
+            tensors[0] = tensors[0] * i
+    if expr.func == TensorProduct:
+        for ar in expr.args:
+            tensors.append(ar)
+    return tensors

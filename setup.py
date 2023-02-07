@@ -6,9 +6,9 @@ from setuptools import find_packages, setup
 __version__ = ""
 exec(open("symboliq/_version.py").read())
 
-name = "SymboliQ"
+name = "symboliq"
 
-description = "SymboliQ is a scalable, application-centric quantum benchmarking suite."
+description = "SymboliQ is a python framework for Symbolic Quantum computation"
 
 # README file as long_description.
 long_description = io.open("README.md", encoding="utf-8").read()
@@ -32,9 +32,9 @@ setup(
     name=name,
     version=__version__,
     url="https://github.com/SupertechLabs/SymboliQ",
-    author="Super.tech",
-    author_email="victory.omole@coldquanta.com",
-    python_requires=(">=3.7.0"),
+    author="Victory Omole",
+    author_email="vtomole2@gmail.com",
+    python_requires=(">=3.8.0"),
     install_requires=requirements,
     extras_require={"dev": dev_requirements},
     license="Apache 2",
