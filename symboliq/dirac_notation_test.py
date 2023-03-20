@@ -1,4 +1,4 @@
-from sympy import sqrt
+from sympy import Symbol, sqrt
 from sympy.physics.quantum import TensorProduct
 from sympy.physics.quantum.gate import HadamardGate, IdentityGate, XGate, YGate, ZGate
 from sympy.physics.quantum.qubit import Qubit
@@ -144,3 +144,12 @@ def test_get_steps_latex() -> None:
         == r"(0) \quad B_{0} {\left|0\right\rangle } \\(1) \quad \left\langle 0 \right. "
         r"{\left|0\right\rangle } {\left|0\right\rangle } \\(2) \quad {\left|0\right\rangle } \\"
     )
+
+
+def test_assert_x_gate_on_alpha_and_beta() -> None:
+    alpha = Symbol("alpha", complex=True)
+    beta = Symbol("beta", complex=True)
+
+    state = x * (alpha * ket_0 + beta * ket_1)
+
+    assert str(DiracNotation(state).operate_reduce()) == "alpha*|1> + beta*|0>"
