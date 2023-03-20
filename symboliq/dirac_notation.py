@@ -1,7 +1,8 @@
 from typing import Any, List
 
 import sympy
-from sympy.core.numbers import Half
+from sympy import srepr, Mul, Symbol
+from sympy.core.numbers import Half, Integer
 from sympy.physics.quantum import (
     Bra,
     Dagger,
@@ -192,6 +193,8 @@ class DiracNotation:
                     state = self._gate_reduce(base * state, True)
 
             else:
+                if isinstance(rev_args_by_index, Symbol) and isinstance(state, Ket):
+                    return rev_args_by_index * state
                 state = self._gate_reduce(rev_args_by_index * state, True)
         return state
 
