@@ -1,6 +1,7 @@
-from typing import Any, List
+from typing import Any, List, Union
 
 import sympy
+from sympy import Symbol, srepr
 from sympy.core.numbers import Half
 from sympy.physics.quantum import (
     Bra,
@@ -39,7 +40,7 @@ i = b_0 + b_3
 cx = TensorProduct(b_0, i) + TensorProduct(b_3, x)
 
 
-def qapply(expr: sympy.Expr) -> sympy.Expr:
+def qapply(expr: sympy.Expr) -> Union[sympy.Basic, sympy.Expr]:
     return DiracNotation(expr).operate_reduce()
 
 
@@ -173,15 +174,28 @@ class DiracNotation:
             return self._add_reduce(arg, add_step)
         return self._tensor_reduce(arg, add_step)
 
-    def operate_reduce(self) -> sympy.Expr:
+    def operate_reduce(self) -> Union[sympy.Basic, sympy.Expr]:
         """Iterates through an expression and simplifies incrementally while
         keeping track of the steps that are taken to simplify it
 
             Returns:
                 The simplified expression
         """
-        assert isinstance(self._expr, sympy.Mul)
-        rev_args = self._expr.args[::-1]
+
+        if "complex=True" in srepr(self._expr):
+            expr = sympy.physics.quantum.qapply(self._expr)
+        else:
+            expr = self._expr
+        if isinstance(expr, sympy.Mul):
+            return self.handle_mul(expr)
+        elif isinstance(expr, sympy.Add):
+            state = sympy.Integer(0)
+            for j in expr.args:
+                state = state + self.handle_mul(j)
+        return state
+
+    def handle_mul(self, expr: sympy.Expr) -> Union[sympy.Basic, sympy.Expr]:
+        rev_args = expr.args[::-1]
         state = rev_args[0]
         for i in range(1, len(rev_args)):
             rev_args_by_index = rev_args[i]
@@ -192,6 +206,13 @@ class DiracNotation:
                     state = self._gate_reduce(base * state, True)
 
             else:
+                if (
+                    isinstance(rev_args_by_index, Symbol)
+                    and isinstance(state, Ket)
+                    and "complex=True" in srepr(rev_args_by_index)
+                ):
+                    return rev_args_by_index * state
+                assert hasattr(rev_args_by_index, "__mul__")
                 state = self._gate_reduce(rev_args_by_index * state, True)
         return state
 
