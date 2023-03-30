@@ -199,9 +199,10 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
--------------------------------------------------------------------------------------
-The code in third_party.py under the directory symboliq/ was directly copied from the
-Sympy project and modified to fit the needs of this project. That code is licensed as:
+---------------------------------------------------------------------------------
+The code in third_party.py under the directory symboliq/ was directly copied from
+the Sympy project and modified to fit the needs of this project.
+That code is licensed as:
 
 Copyright (c) 2006-2023 SymPy Development Team
 
