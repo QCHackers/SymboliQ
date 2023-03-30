@@ -1,5 +1,3 @@
-# pragma: no cover
-
 # Copyright (c) 2006-2023 SymPy Development Team
 #
 # All rights reserved.
@@ -28,6 +26,8 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 # DAMAGE.
+
+# pragma: no cover
 from typing import List, Union
 
 from sympy import Add, Basic, Mul, Pow
