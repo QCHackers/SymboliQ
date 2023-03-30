@@ -126,6 +126,15 @@ def test_circuit_reduce() -> None:
         ket_1, ket_1
     )
 
+    assert (
+        str(
+            DiracNotation(
+                TensorProduct(cx, i) * TensorProduct(h, i, i) * TensorProduct(ket_0, ket_0, ket_0)
+            ).operate_reduce()
+        )
+        == "sqrt(2)*|0>x|0>x|0>/2 + sqrt(2)*|1>x|1>x|0>/2"
+    )
+
 
 def test_get_steps() -> None:
     assert (

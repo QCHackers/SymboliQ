@@ -3,17 +3,11 @@ from typing import Any, List, Union
 import sympy
 from sympy import Symbol, srepr
 from sympy.core.numbers import Half
-from sympy.physics.quantum import (
-    Bra,
-    Dagger,
-    InnerProduct,
-    Ket,
-    OuterProduct,
-    TensorProduct,
-    tensor_product_simp,
-)
+from sympy.physics.quantum import Bra, Dagger, InnerProduct, Ket, OuterProduct, TensorProduct
 from sympy.physics.quantum.gate import HadamardGate, IdentityGate, XGate, YGate, ZGate
 from sympy.physics.quantum.qubit import Qubit
+
+from symboliq.third_party import tensor_product_simp_fork
 
 ket_0 = Ket(0)
 bra_0 = Dagger(ket_0)
@@ -135,7 +129,7 @@ class DiracNotation:
 
     def _tensor_reduce(self, arg: sympy.Expr, add_step: bool) -> sympy.Expr:
         final_state_vec = sympy.Integer(0)
-        mes = tensor_product_simp(arg.expand(tensorproduct=True))
+        mes = tensor_product_simp_fork(arg.expand(tensorproduct=True))
         mes = _factor_tensor(mes, self._num_qubits)
         for i in mes:
             tansors = []
