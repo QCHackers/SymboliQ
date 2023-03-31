@@ -43,7 +43,6 @@ from sympy.physics.quantum.tensorproduct import (
 def _break_up_tensor_products(lst: List[Union[OuterProduct, TensorProduct]]) -> List[Basic]:
     new_list = []
     for i in lst:
-        print(type(i))
         if isinstance(i, TensorProduct):
             new_list.append(list(i.args))
         flat_list = [item for sublist in new_list for item in sublist]
